@@ -1,0 +1,8 @@
+## Interface: 110000
+## Title: Silent DPS Bars
+## Notes: A minimal, silent DPS/HPS tracker for raids and battlegrounds.
+## Author: Silent Thunder
+## Version: 1.0
+## SavedVariables: SilentDPSBarsDB
+
+main.lua
