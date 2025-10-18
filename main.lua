@@ -9,7 +9,7 @@ SilentDPSBarsDB = SilentDPSBarsDB or {
     pos = {x=0, y=0}
 }
 
--- Create frame
+-- yay a window
 local frame = CreateFrame("Frame", "SilentDPSBarsFrame", UIParent)
 frame:SetSize(SilentDPSBarsDB.size.w, SilentDPSBarsDB.size.h)
 frame:SetPoint("CENTER", UIParent, "CENTER", SilentDPSBarsDB.pos.x, SilentDPSBarsDB.pos.y)
@@ -30,7 +30,7 @@ frame:SetScript("OnDragStop", function(self)
     SilentDPSBarsDB.pos.x, SilentDPSBarsDB.pos.y = x, y
 end)
 
--- Text
+-- Textfonts
 frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 frame.text:SetPoint("CENTER")
 frame.text:SetTextColor(
@@ -41,11 +41,11 @@ frame.text:SetTextColor(
 )
 frame.text:SetText("Silent DPS Bars\nDPS: 0 | HPS: 0 | Misses: 0")
 
--- Variables
+-- a list of variables I think they're called
 local combatStart, totalDamage, totalHealing, totalMisses = 0, 0, 0, 0
 local inCombat, paused = false, false
 
--- Functions
+-- other things
 local function updateDisplay()
     local elapsed = (inCombat and (GetTime() - combatStart)) or 1
     local dps = totalDamage / elapsed
@@ -87,7 +87,7 @@ frame:SetScript("OnEvent", function(_, event)
             CombatLogGetCurrentEventInfo()
         if sourceGUID == UnitGUID("player") then
             if subevent == "SWING_DAMAGE" then
-                totalDamage = totalDamage + spellID
+                totalDamage = totalDamage + (amount or 0)
             elseif subevent == "SPELL_DAMAGE" or subevent == "RANGE_DAMAGE" then
                 totalDamage = totalDamage + (amount or 0)
             elseif subevent == "SPELL_HEAL" then
