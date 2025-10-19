@@ -1,0 +1,7 @@
+# WoW addon structure
+*.bak
+*.tmp
+*.log
+*.zip
+Thumbs.db
+.DS_Store
