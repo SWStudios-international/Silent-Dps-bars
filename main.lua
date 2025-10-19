@@ -1,77 +1,142 @@
--- Silent DPS Bars - Retail Compatible
+-- Silent DPS Bars - main.lua
+-- Personal DPS/HPS tracker (Retail-safe)
+
 local addonName, SDB = ...
+print("🔸 Silent DPS Bars loaded, waiting for ADDON_LOADED")
 
--- Namespace
-SDB.frame = CreateFrame("Frame")
-SDB.bar = nil
-SDB.inCombat = false
-SDB.totalDamage = 0
-SDB.combatStart = 0
+-- Create core frame
+local core = CreateFrame("Frame")
+core:RegisterEvent("ADDON_LOADED")
+core:RegisterEvent("PLAYER_REGEN_DISABLED")
+core:RegisterEvent("PLAYER_REGEN_ENABLED")
+core:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
--- Initialize after PLAYER_LOGIN
-SDB.frame:RegisterEvent("PLAYER_LOGIN")
-SDB.frame:SetScript("OnEvent", function(_, event, ...)
-    if event == "PLAYER_LOGIN" then
-        SDB:Initialize()
-    elseif event == "PLAYER_REGEN_DISABLED" then
-        SDB:StartCombat()
+-- Variables for tracking
+local totalDamage, totalHealing, combatStartTime = 0, 0, 0
+local inCombat = false
+local updateInterval, timeSinceLastUpdate = 1, 0
+
+----------------------------------------------------------
+-- Create Bars
+----------------------------------------------------------
+local function CreateBar(parent, color)
+    local bar = CreateFrame("StatusBar", nil, parent, "BackdropTemplate")
+    bar:SetSize(parent:GetWidth() - 10, (parent:GetHeight() / 2) - 5)
+    bar:SetStatusBarTexture("Interface/TargetingFrame/UI-StatusBar")
+    bar:SetBackdrop({ bgFile = "Interface/DialogFrame/UI-DialogBox-Background" })
+    bar:SetBackdropColor(0, 0, 0, 0.7)
+    bar:SetStatusBarColor(unpack(color))
+    bar:SetMinMaxValues(0, 100)
+    bar:SetValue(0)
+
+    bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bar.text:SetPoint("CENTER")
+    bar.text:SetText("0")
+
+    return bar
+end
+
+----------------------------------------------------------
+-- On Load
+----------------------------------------------------------
+core:SetScript("OnEvent", function(self, event, arg1)
+    if event == "ADDON_LOADED" and arg1 == addonName then
+        print("🟢 ADDON_LOADED fired for:", addonName)
+
+        SilentDPSBarsDB = SilentDPSBarsDB or {}
+        local w, h = SDB.GetSize()
+        local x, y = SDB.GetPosition()
+        local r, g, b, a = SDB.GetColor("barColor")
+
+        -- Create main frame
+        local f = CreateFrame("Frame", "SilentDPSBarsFrame", UIParent, "BackdropTemplate")
+        f:SetSize(w, h)
+        f:SetPoint("CENTER", UIParent, "CENTER", x, y)
+        f:SetFrameStrata("FULLSCREEN_DIALOG")
+        f:SetBackdrop({ bgFile = "Interface/DialogFrame/UI-DialogBox-Background" })
+        f:SetBackdropColor(r, g, b, a)
+        f:Show()
+
+        -- Create DPS & HPS bars
+        f.dpsBar = CreateBar(f, {1, 0.8, 0, 1})   -- Yellowish DPS bar
+        f.dpsBar:SetPoint("TOP", f, "TOP", 0, -5)
+        f.hpsBar = CreateBar(f, {0, 1, 0, 1})     -- Green HPS bar
+        f.hpsBar:SetPoint("TOP", f.dpsBar, "BOTTOM", 0, -5)
+
+        SDB.frame = f
+
+        ----------------------------------------------------------
+        -- Slash Command Handler
+        ----------------------------------------------------------
+        SLASH_SDB1 = "/sdb"
+        SlashCmdList["SDB"] = function(msg)
+            msg = string.lower(msg or "")
+            if msg == "hide" then
+                f:Hide()
+                print("🟠 Silent DPS Bars hidden")
+            elseif msg == "show" then
+                f:Show()
+                print("🟢 Silent DPS Bars shown")
+            elseif msg == "reset" then
+                SilentDPSBarsDB.pos.x, SilentDPSBarsDB.pos.y = 0, 0
+                f:ClearAllPoints()
+                f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+                print("🔵 Silent DPS Bars position reset")
+            else
+                print("|cff00ff00Silent DPS Bars Commands:|r")
+                print("/sdb show - show frame")
+                print("/sdb hide - hide frame")
+                print("/sdb reset - center frame")
+            end
+        end
+
+        print("✅ Silent DPS Bars initialized.")
+    end
+
+    ----------------------------------------------------------
+    -- Combat State Tracking
+    ----------------------------------------------------------
+    if event == "PLAYER_REGEN_DISABLED" then
+        inCombat = true
+        combatStartTime = GetTime()
+        totalDamage, totalHealing = 0, 0
     elseif event == "PLAYER_REGEN_ENABLED" then
-        SDB:EndCombat()
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        SDB:OnCombatLog(CombatLogGetCurrentEventInfo())
+        inCombat = false
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and inCombat then
+        local _, subEvent, _, srcGUID, _, _, _, _, _, _, _, amount, _, _, _, overheal = CombatLogGetCurrentEventInfo()
+        if srcGUID == UnitGUID("player") then
+            if subEvent == "SPELL_DAMAGE" or subEvent == "SWING_DAMAGE" or subEvent == "RANGE_DAMAGE" then
+                totalDamage = totalDamage + (amount or 0)
+            elseif subEvent == "SPELL_HEAL" or subEvent == "SPELL_PERIODIC_HEAL" then
+                totalHealing = totalHealing + (amount or 0)
+            end
+        end
     end
 end)
 
--- Create the frame AFTER login
-function SDB:Initialize()
-    print("Silent DPS Bars initialized ✅")
+----------------------------------------------------------
+-- OnUpdate: refresh bars each second
+----------------------------------------------------------
+core:SetScript("OnUpdate", function(self, elapsed)
+    if not inCombat then return end
+    timeSinceLastUpdate = timeSinceLastUpdate + elapsed
+    if timeSinceLastUpdate >= updateInterval then
+        timeSinceLastUpdate = 0
+        local elapsedCombat = GetTime() - combatStartTime
+        if elapsedCombat > 0 then
+            local dps = totalDamage / elapsedCombat
+            local hps = totalHealing / elapsedCombat
 
-    local f = CreateFrame("Frame", nil, UIParent)
-    f:SetSize(300, 40)
-    f:SetPoint("CENTER", 0, -100)
-    f:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background" })
-    f:SetBackdropColor(0, 0, 0, 0.7)
+            local f = SDB.frame
+            if f and f.dpsBar and f.hpsBar then
+                f.dpsBar:SetMinMaxValues(0, math.max(1, dps * 1.25))
+                f.dpsBar:SetValue(dps)
+                f.dpsBar.text:SetText(string.format("DPS: %.1f", dps))
 
-    local bar = CreateFrame("StatusBar", nil, f)
-    bar:SetAllPoints()
-    bar:SetStatusBarTexture("Interface/TargetingFrame/UI-StatusBar")
-    bar:SetStatusBarColor(0.1, 0.6, 1)
-    bar:SetMinMaxValues(0, 1)
-    bar:SetValue(0)
-
-    bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    bar.text:SetPoint("CENTER")
-    bar.text:SetText("Waiting for combat...")
-
-    self.bar = bar
-    self.frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    self.frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    self.frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-end
-
-function SDB:StartCombat()
-    self.totalDamage = 0
-    self.combatStart = GetTime()
-    self.inCombat = true
-    self.bar.text:SetText("Combat started!")
-end
-
-function SDB:EndCombat()
-    self.inCombat = false
-    self.bar.text:SetText("Combat ended")
-end
-
-function SDB:OnCombatLog(...)
-    if not self.inCombat then return end
-    local _, subevent, _, sourceGUID, sourceName, _, _, _, _, _, _, _, _, _, amount = ...
-    if sourceName == UnitName("player") then
-        if subevent == "SWING_DAMAGE" or subevent == "SPELL_DAMAGE" or subevent == "RANGE_DAMAGE" then
-            self.totalDamage = self.totalDamage + (amount or 0)
-            local elapsed = GetTime() - self.combatStart
-            local dps = self.totalDamage / elapsed
-            local pct = math.min(dps / 100000, 1)
-            self.bar:SetValue(pct)
-            self.bar.text:SetText(string.format("DPS: %.1f", dps))
+                f.hpsBar:SetMinMaxValues(0, math.max(1, hps * 1.25))
+                f.hpsBar:SetValue(hps)
+                f.hpsBar.text:SetText(string.format("HPS: %.1f", hps))
+            end
         end
     end
-end
+end)
