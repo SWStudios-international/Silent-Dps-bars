@@ -1,10 +1,9 @@
--- Silent DPS Bars - Config.lua
--- Handles saved variables and user settings safely in Retail
 
--- Make sure our global table exists before we touch it
+
+
 SilentDPSBarsDB = SilentDPSBarsDB or {}
 
--- Apply default settings only if they don’t exist yet
+
 local defaults = {
     barColor = { r = 0.1, g = 0.1, b = 0.1, a = 0.6 },
     textColor = { r = 1, g = 1, b = 1 },
@@ -35,12 +34,12 @@ local function GetPosition()
     return p.x or 0, p.y or 0
 end
 
--- Expose to other files via the global addon table
+
 local addonName, SDB = ...
 SDB = SDB or {}
 SDB.GetColor = GetColor
 SDB.GetSize = GetSize
 SDB.GetPosition = GetPosition
 
--- Debug print to confirm config initialized
-print("🧩 Silent DPS Bars config loaded")
+
+print("Shwoop Silent DPS Bars config loaded")

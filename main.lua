@@ -1,17 +1,17 @@
 -- Silent DPS Bars - main.lua
--- Personal DPS/HPS tracker (Retail-safe)
+-- Personal DPS/HPS tracker (Retail-safe) V1
 
 local addonName, SDB = ...
-print("🔸 Silent DPS Bars loaded, waiting for ADDON_LOADED")
+print(" **** Silent DPS Bars loaded, waiting for ADDON_LOADED")
 
--- Create core frame
+
 local core = CreateFrame("Frame")
 core:RegisterEvent("ADDON_LOADED")
 core:RegisterEvent("PLAYER_REGEN_DISABLED")
 core:RegisterEvent("PLAYER_REGEN_ENABLED")
 core:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
--- Variables for tracking
+
 local totalDamage, totalHealing, combatStartTime = 0, 0, 0
 local inCombat = false
 local updateInterval, timeSinceLastUpdate = 1, 0
@@ -48,7 +48,7 @@ core:SetScript("OnEvent", function(self, event, arg1)
         local x, y = SDB.GetPosition()
         local r, g, b, a = SDB.GetColor("barColor")
 
-        -- Create main frame
+  
         local f = CreateFrame("Frame", "SilentDPSBarsFrame", UIParent, "BackdropTemplate")
         f:SetSize(w, h)
         f:SetPoint("CENTER", UIParent, "CENTER", x, y)
@@ -57,10 +57,10 @@ core:SetScript("OnEvent", function(self, event, arg1)
         f:SetBackdropColor(r, g, b, a)
         f:Show()
 
-        -- Create DPS & HPS bars
-        f.dpsBar = CreateBar(f, {1, 0.8, 0, 1})   -- Yellowish DPS bar
+        
+        f.dpsBar = CreateBar(f, {1, 0.8, 0, 1})   
         f.dpsBar:SetPoint("TOP", f, "TOP", 0, -5)
-        f.hpsBar = CreateBar(f, {0, 1, 0, 1})     -- Green HPS bar
+        f.hpsBar = CreateBar(f, {0, 1, 0, 1})     
         f.hpsBar:SetPoint("TOP", f.dpsBar, "BOTTOM", 0, -5)
 
         SDB.frame = f
@@ -73,15 +73,15 @@ core:SetScript("OnEvent", function(self, event, arg1)
             msg = string.lower(msg or "")
             if msg == "hide" then
                 f:Hide()
-                print("🟠 Silent DPS Bars hidden")
+                print(" Silent DPS Bars hidden")
             elseif msg == "show" then
                 f:Show()
-                print("🟢 Silent DPS Bars shown")
+                print(" Silent DPS Bars shown")
             elseif msg == "reset" then
                 SilentDPSBarsDB.pos.x, SilentDPSBarsDB.pos.y = 0, 0
                 f:ClearAllPoints()
                 f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-                print("🔵 Silent DPS Bars position reset")
+                print(" Silent DPS Bars position reset")
             else
                 print("|cff00ff00Silent DPS Bars Commands:|r")
                 print("/sdb show - show frame")
@@ -90,7 +90,7 @@ core:SetScript("OnEvent", function(self, event, arg1)
             end
         end
 
-        print("✅ Silent DPS Bars initialized.")
+        print("Shashaw Silent DPS Bars initialized.")
     end
 
     ----------------------------------------------------------
