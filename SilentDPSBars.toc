@@ -1,9 +1,14 @@
 ## Interface: 110205
 ## Title: Silent DPS Bars
-## Notes: A minimal DPS/HPS tracker.
-## Author: Silent Thunder
-## Version: 1.0
+## Notes: Minimal DPS/HPS tracking addon by Silent Thunder Studios.
+## Author: 静雷 (Silent Thunder)
+## Version: 1.1
 ## SavedVariables: SilentDPSBarsDB
+
+## OptionalDeps:
+## Dependencies:
+## LoadOnDemand: 0
 
 main.lua
 config.lua
+SilentDPSBars_Options.lua

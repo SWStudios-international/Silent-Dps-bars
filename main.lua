@@ -1,23 +1,38 @@
 -- Silent DPS Bars - main.lua
--- Personal DPS/HPS tracker (Retail-safe) V1
+-- Personal DPS/HPS tracker (Retail-safe, stable, with /sdb ui integration)
 
 local addonName, SDB = ...
-print(" **** Silent DPS Bars loaded, waiting for ADDON_LOADED")
+print("Silent DPS Bars loaded, waiting for ADDON_LOADED")
 
-
+-- Core frame
 local core = CreateFrame("Frame")
 core:RegisterEvent("ADDON_LOADED")
 core:RegisterEvent("PLAYER_REGEN_DISABLED")
 core:RegisterEvent("PLAYER_REGEN_ENABLED")
 core:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
-
+-- Tracking variables
 local totalDamage, totalHealing, combatStartTime = 0, 0, 0
 local inCombat = false
 local updateInterval, timeSinceLastUpdate = 1, 0
 
 ----------------------------------------------------------
--- Create Bars
+-- Short number formatting (e.g. 861234 -> 861.2K)
+----------------------------------------------------------
+local function ShortNumber(num)
+    if num >= 1e9 then
+        return string.format("%.2fB", num / 1e9)
+    elseif num >= 1e6 then
+        return string.format("%.1fM", num / 1e6)
+    elseif num >= 1e3 then
+        return string.format("%.1fK", num / 1e3)
+    else
+        return string.format("%.0f", num)
+    end
+end
+
+----------------------------------------------------------
+-- Bar creation helper
 ----------------------------------------------------------
 local function CreateBar(parent, color)
     local bar = CreateFrame("StatusBar", nil, parent, "BackdropTemplate")
@@ -37,18 +52,18 @@ local function CreateBar(parent, color)
 end
 
 ----------------------------------------------------------
--- On Load
+-- Event handler
 ----------------------------------------------------------
 core:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == addonName then
-        print("🟢 ADDON_LOADED fired for:", addonName)
+        print("ADDON_LOADED fired for:", addonName)
 
         SilentDPSBarsDB = SilentDPSBarsDB or {}
         local w, h = SDB.GetSize()
         local x, y = SDB.GetPosition()
         local r, g, b, a = SDB.GetColor("barColor")
 
-  
+        -- Main frame
         local f = CreateFrame("Frame", "SilentDPSBarsFrame", UIParent, "BackdropTemplate")
         f:SetSize(w, h)
         f:SetPoint("CENTER", UIParent, "CENTER", x, y)
@@ -57,44 +72,52 @@ core:SetScript("OnEvent", function(self, event, arg1)
         f:SetBackdropColor(r, g, b, a)
         f:Show()
 
-        
-        f.dpsBar = CreateBar(f, {1, 0.8, 0, 1})   
+        -- DPS & HPS bars
+        f.dpsBar = CreateBar(f, {1, 0.8, 0, 1})
         f.dpsBar:SetPoint("TOP", f, "TOP", 0, -5)
-        f.hpsBar = CreateBar(f, {0, 1, 0, 1})     
+        f.hpsBar = CreateBar(f, {0, 1, 0, 1})
         f.hpsBar:SetPoint("TOP", f.dpsBar, "BOTTOM", 0, -5)
 
         SDB.frame = f
 
         ----------------------------------------------------------
-        -- Slash Command Handler
+        -- Slash commands
         ----------------------------------------------------------
         SLASH_SDB1 = "/sdb"
         SlashCmdList["SDB"] = function(msg)
             msg = string.lower(msg or "")
             if msg == "hide" then
                 f:Hide()
-                print(" Silent DPS Bars hidden")
+                print("Silent DPS Bars hidden")
             elseif msg == "show" then
                 f:Show()
-                print(" Silent DPS Bars shown")
+                print("Silent DPS Bars shown")
             elseif msg == "reset" then
                 SilentDPSBarsDB.pos.x, SilentDPSBarsDB.pos.y = 0, 0
                 f:ClearAllPoints()
                 f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-                print(" Silent DPS Bars position reset")
+                print("Silent DPS Bars position reset")
+            elseif msg == "ui" then
+                if InterfaceOptionsFrame_OpenToCategory then
+                    InterfaceOptionsFrame_OpenToCategory("Silent DPS Bars")
+                    InterfaceOptionsFrame_OpenToCategory("Silent DPS Bars")
+                else
+                    print("UI options not available")
+                end
             else
-                print("|cff00ff00Silent DPS Bars Commands:|r")
+                print("Silent DPS Bars Commands:")
                 print("/sdb show - show frame")
                 print("/sdb hide - hide frame")
                 print("/sdb reset - center frame")
+                print("/sdb ui - open settings window")
             end
         end
 
-        print("Shashaw Silent DPS Bars initialized.")
+        print("Silent DPS Bars initialized.")
     end
 
     ----------------------------------------------------------
-    -- Combat State Tracking
+    -- Combat tracking
     ----------------------------------------------------------
     if event == "PLAYER_REGEN_DISABLED" then
         inCombat = true
@@ -103,7 +126,7 @@ core:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_REGEN_ENABLED" then
         inCombat = false
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" and inCombat then
-        local _, subEvent, _, srcGUID, _, _, _, _, _, _, _, amount, _, _, _, overheal = CombatLogGetCurrentEventInfo()
+        local _, subEvent, _, srcGUID, _, _, _, _, _, _, _, amount = CombatLogGetCurrentEventInfo()
         if srcGUID == UnitGUID("player") then
             if subEvent == "SPELL_DAMAGE" or subEvent == "SWING_DAMAGE" or subEvent == "RANGE_DAMAGE" then
                 totalDamage = totalDamage + (amount or 0)
@@ -115,7 +138,7 @@ core:SetScript("OnEvent", function(self, event, arg1)
 end)
 
 ----------------------------------------------------------
--- OnUpdate: refresh bars each second
+-- Update frame every second
 ----------------------------------------------------------
 core:SetScript("OnUpdate", function(self, elapsed)
     if not inCombat then return end
@@ -131,11 +154,11 @@ core:SetScript("OnUpdate", function(self, elapsed)
             if f and f.dpsBar and f.hpsBar then
                 f.dpsBar:SetMinMaxValues(0, math.max(1, dps * 1.25))
                 f.dpsBar:SetValue(dps)
-                f.dpsBar.text:SetText(string.format("DPS: %.1f", dps))
+                f.dpsBar.text:SetText("DPS: " .. ShortNumber(dps))
 
                 f.hpsBar:SetMinMaxValues(0, math.max(1, hps * 1.25))
                 f.hpsBar:SetValue(hps)
-                f.hpsBar.text:SetText(string.format("HPS: %.1f", hps))
+                f.hpsBar.text:SetText("HPS: " .. ShortNumber(hps))
             end
         end
     end
